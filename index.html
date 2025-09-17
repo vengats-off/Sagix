@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SageForge - Trading Dashboard</title>
+    <link rel="stylesheet" href="./css/main-style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="logo">
+                <img src="logo.png" alt="sagix logo" class="logo-img">
+                    <h1 class="logo-text">SagiX</h1>
+                </div>
+            </div>
+            
+            <div class="header-center">
+                <div class="clock-container">
+                    <span class="material-icons clock-icon">schedule</span>
+                    <div id="live-clock" class="live-clock">--:--:-- --</div>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <button class="contact-btn">
+                    <span class="material-icons">mail</span>
+                    <span class="contact-text">Contact</span>
+                </button>
+                <button class="mobile-menu-btn" id="mobile-menu-btn">
+                    <span class="material-icons">menu</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
+
+    <!-- Main Layout Container -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <h3 class="sidebar-title">Quick Links</h3>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a href="https://in.tradingview.com/" target="_blank" class="sidebar-link" title="TradingView Charts">
+                            <span class="material-icons">show_chart</span>
+                            <span class="sidebar-text">TradingView</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://in.investing.com/news/stock-market-news" target="_blank" class="sidebar-link" title="Market News">
+                            <span class="material-icons">article</span>
+                            <span class="sidebar-text">Market News</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://www.moneycontrol.com/markets/global-indices/" target="_blank" class="sidebar-link" title="Global Markets">
+                            <span class="material-icons">public</span>
+                            <span class="sidebar-text">Global Markets</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://www.screener.in/" target="_blank" class="sidebar-link" title="Stock Screener">
+                            <span class="material-icons">filter_list</span>
+                            <span class="sidebar-text">Stock Screener</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://sensibull.com/" target="_blank" class="sidebar-link" title="Options Strategy">
+                            <span class="material-icons">insights</span>
+                            <span class="sidebar-text">Options Strategy</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://www.nseindia.com/option-chain" target="_blank" class="sidebar-link" title="Option Chain">
+                            <span class="material-icons">trending_up</span>
+                            <span class="sidebar-text">Option Chain</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://www.niftyindices.com/reports/historical-data" target="_blank" class="sidebar-link" title="Historical Data">
+                            <span class="material-icons">storage</span>
+                            <span class="sidebar-text">Historical Data</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="https://www.5paisa.com/nifty-50-stocks-list" target="_blank" class="sidebar-link" title="NIFTY 50">
+                            <span class="material-icons">list</span>
+                            <span class="sidebar-text">NIFTY 50</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h2 class="page-title">Trading Dashboard</h2>
+                <p class="page-subtitle">Access your favorite trading tools and resources</p>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card" data-path="sentiment" oneclick="navigatetoSentiment()">
+                    <div class="feature-icon">
+                        <span class="material-icons">trending_down</span>
+                    </div>
+                    <div class="feature-content">
+                        <h3 class="feature-title">Sentimental Analysis</h3>
+                        <p class="feature-description">Analyse the News (Postive or Negative) </p>
+                    </div>
+                    <div class="feature-arrow">
+                        <span class="material-icons">arrow_forward</span>
+                    </div>
+                </div>
+
+                <div class="feature-card" data-path="/screener">
+                    <div class="feature-icon">
+                        <span class="material-icons">search</span>
+                    </div>
+                    <div class="feature-content">
+                        <h3 class="feature-title">Market Screener</h3>
+                        <p class="feature-description">Screen stocks based on technical and fundamental criteria</p>
+                    </div>
+                    <div class="feature-arrow">
+                        <span class="material-icons">arrow_forward</span>
+                    </div>
+                </div>
+
+                <!--<div class="feature-card" data-path="/technical">
+                    <div class="feature-icon">
+                        <span class="material-icons">trending_up</span>
+                    </div>
+                    <div class="feature-content">
+                        <h3 class="feature-title">Technical Analysis</h3>
+                        <p class="feature-description">Advanced charting and technical indicator tools</p>
+                    </div>
+                    <div class="feature-arrow">
+                        <span class="material-icons">arrow_forward</span>
+                    </div>
+                </div>
+
+                <div class="feature-card" data-path="/options">
+                    <div class="feature-icon">
+                        <span class="material-icons">account_balance</span>
+                    </div>
+                    <div class="feature-content">
+                        <h3 class="feature-title">Options Tracker</h3>
+                        <p class="feature-description">Monitor and analyze options trading opportunities</p>
+                    </div>
+                    <div class="feature-arrow">
+                        <span class="material-icons">arrow_forward</span>
+                    </div>
+                </div>
+
+                <div class="feature-card" data-path="/risk">
+                    <div class="feature-icon">
+                        <span class="material-icons">security</span>
+                    </div>
+                    <div class="feature-content">
+                        <h3 class="feature-title">Risk Manager</h3>
+                        <p class="feature-description">Calculate and manage your trading risk exposure</p>
+                    </div>
+                    <div class="feature-arrow">
+                        <span class="material-icons">arrow_forward</span>
+                    </div>
+                </div>
+
+                <div class="feature-card" data-path="/alerts">
+                    <div class="feature-icon">
+                        <span class="material-icons">notifications</span>
+                    </div>
+                    <div class="feature-content">
+                        <h3 class="feature-title">Market Alerts</h3>
+                        <p class="feature-description">Set custom price and volume alerts for stocks</p>
+                    </div>
+                    <div class="feature-arrow">
+                        <span class="material-icons">arrow_forward</span>
+                    </div> 
+                </div>-->
+            </div>
+        </main>
+
+        <!--Quotes Panel -->
+        <aside class="quotes-panel">
+            <div class="quotes-header">
+                <h3 class="quotes-title">Trading Wisdom</h3>
+                <span class="material-icons quotes-icon">format_quote</span>
+            </div>
+            <div class="quotes-content">
+                <div class="quote-item active" id="current-quote">
+                    <blockquote class="quote-text">
+                        "The stock market is filled with individuals who know the price of everything, but the value of nothing."
+                    </blockquote>
+                    <cite class="quote-author">— Philip Fisher</cite>
+                    <span class="quote-category">Investment Philosophy</span>
+                </div>
+            </div>
+            <div class="quotes-controls">
+                <button class="quote-nav-btn" id="prev-quote" aria-label="Previous quote">
+                    <span class="material-icons">chevron_left</span>
+                </button>
+                <div class="quote-indicators" id="quote-indicators">
+                    <!-- Dynamically populated -->
+                </div>
+                <button class="quote-nav-btn" id="next-quote" aria-label="Next quote">
+                    <span class="material-icons">chevron_right</span>
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    
+
+    <script src="./js/main-app.js"></script>
+</body>
+</html>

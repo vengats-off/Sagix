@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indian Equity Sentiment Analyzer</title>
+    <link rel="stylesheet" href="./css/sentiment-style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="header-content">
+            <!-- Left Side: Logo and Name -->
+                <div class="logo" oneclick="goBackHome()">
+                    <img src="logo.png" alt="sagix logo" class="logo-img">
+                    <h1 class="logo-text">SagiX</h1>
+                </div>
+    
+    <!-- Center: Title and Subtitle -->
+            <div class="title-section">
+                <div class="app-title">
+                    <span class="title-icon">📊</span>
+                    Indian News Sentiment Analyzer
+                </div>
+                <div class="app-subtitle">
+                    Real-time sentiment analysis from news, social media & market sources
+                </div>
+            </div>
+    
+    <!-- Right Side: Empty spacer for balance (optional) -->
+                <div class="header-spacer"></div>
+            </div>
+</header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Search Section -->
+                <section class="search-section">
+                    <div class="search-container">
+                        <div class="search-input-wrapper">
+                            <input 
+                                type="text" 
+                                id="companySearch" 
+                                class="search-input" 
+                                placeholder="Search Indian companies (e.g., Reliance, TCS, HDFC...)"
+                                autocomplete="off"
+                            >
+                            <div class="search-icon">🔍</div>
+                        </div>
+                        <div id="searchSuggestions" class="search-suggestions hidden"></div>
+
+                        <!-- DATE RANGE FILTER BUTTONS -->
+                        <div id="dateRangeOptions" class="date-range-options">
+                            <label style="font-weight: bold; margin-right: 10px;">Filter by Date:</label>
+                            <button type="button" data-range="1d" class="date-range-btn active">Last 1 Day</button>
+                            <button type="button" data-range="3d" class="date-range-btn">Last 3 Days</button>
+                            <button type="button" data-range="1w" class="date-range-btn">Last 1 Week</button>
+                            <button type="button" data-range="1m" class="date-range-btn">Last 1 Month</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Info Section -->
+                <section class="info-section">
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-icon">📊</div>
+                            <h3>Multi-Source Analysis</h3>
+                            <p>Analyzes sentiment from news articles, social media, and trusted market sources</p>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-icon">⚡</div>
+                            <h3>Real-Time Updates</h3>
+                            <p>Live sentiment tracking with continuous updates from multiple data streams</p>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-icon">🎯</div>
+                            <h3>AI-Powered Insights</h3>
+                            <p>Advanced machine learning algorithms provide accurate sentiment classification</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Results Section -->
+                <section id="resultsSection" class="results-section hidden">
+                    <!-- Loading State -->
+                    <div id="loadingState" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <h3>Analyzing Market Sentiment</h3>
+                        <p>Analyzing sentiment from multiple news sources and social media platforms...</p>
+                        <div class="loading-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
+                            <span class="progress-text">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- No Data State -->
+                    <div id="noDataState" class="no-data-state hidden">
+                        <div class="no-data-animation">
+                            <div class="no-data-icon">📭</div>
+                            <div class="pulse-ring"></div>
+                        </div>
+                        <h3>No Recent Data Found</h3>
+                        <p>We couldn't find recent news or market data for this company. Please try another company or check back later.</p>
+                        <button class="btn btn--primary" onclick="clearResults()">Search Another Company</button>
+                    </div>
+
+                    <!-- Results Content -->
+                    <div id="resultsContent" class="results-content hidden">
+                        <!-- Company Header -->
+                        <div class="company-header">
+                            <div class="company-info">
+                                <h2 id="companyName" class="company-name"></h2>
+                                <div class="company-details">
+                                    <span id="companySymbol" class="company-symbol"></span>
+                                    <span class="separator">•</span>
+                                    <span id="companySector" class="company-sector"></span>
+                                </div>
+                            </div>
+                            <div class="sentiment-badge-container">
+                                <div id="sentimentBadge" class="sentiment-badge">
+                                    <span class="sentiment-label"></span>
+                                    <span class="sentiment-confidence"></span>
+                                </div>
+                                <button id="refreshBtn" class="refresh-btn" title="Refresh Data">
+                                    <span class="refresh-icon">🔄</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Overall Reasoning Section -->
+                        <div class="overall-reasoning-section">
+                            <h4>Overall Analysis Reasoning</h4>
+                            <div class="reasoning-content">
+                                <p id="overallReasoning" class="reasoning-text"></p>
+                                <div class="reasoning-stats">
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="sourcesAnalyzed">0</span>
+                                        <span class="stat-label">Sources Analyzed</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="articlesProcessed">0</span>
+                                        <span class="stat-label">Articles Processed</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="overallConfidence">0%</span>
+                                        <span class="stat-label">Overall Confidence</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- News Sources Section -->
+                        <div class="news-sources-section">
+                            <div class="section-header">
+                                <h4>News Sources & Attribution</h4>
+                                <div class="source-filters">
+                                    <button class="filter-btn active" data-filter="all">All Sources</button>
+                                    <button class="filter-btn" data-filter="positive">Positive</button>
+                                    <button class="filter-btn" data-filter="negative">Negative</button>
+                                    <button class="filter-btn" data-filter="neutral">Neutral</button>
+                                </div>
+                            </div>
+                            
+                            <div id="newsSourcesList" class="news-sources-list"></div>
+                        </div>
+
+                        <!-- Detailed Analysis Panel -->
+                        <div class="detailed-analysis-section">
+                            <h4>Detailed Analysis Breakdown</h4>
+                            
+                            <!-- Analysis Tabs -->
+                            <div class="analysis-tabs">
+                                <button class="tab-btn active" data-tab="overview">Overview</button>
+                                <button class="tab-btn" data-tab="by-source">By Source</button>
+                                <button class="tab-btn" data-tab="methodology">Methodology</button>
+                            </div>
+
+                            <!-- Tab Content -->
+                            <div class="tab-content">
+                                <!-- Overview Tab -->
+                                <div id="overviewTab" class="tab-pane active">
+                                    <div class="analysis-factors">
+                                        <div class="factor-section positive-factors">
+                                            <h5>Positive Factors</h5>
+                                            <div id="positiveFactors" class="factors-list"></div>
+                                        </div>
+                                        <div class="factor-section negative-factors">
+                                            <h5>Negative Factors</h5>
+                                            <div id="negativeFactors" class="factors-list"></div>
+                                        </div>
+                                        <div class="factor-section neutral-factors">
+                                            <h5>Neutral Factors</h5>
+                                            <div id="neutralFactors" class="factors-list"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- By Source Tab -->
+                                <div id="bySourceTab" class="tab-pane hidden">
+                                    <div class="source-breakdown">
+                                        <div class="charts-grid">
+                                            <div class="chart-card">
+                                                <h5>Sentiment Distribution</h5>
+                                                <div class="chart-container" style="position: relative; height: 300px;">
+                                                    <canvas id="sentimentPieChart"></canvas>
+                                                </div>
+                                            </div>
+                                            <div class="chart-card">
+                                                <h5>Source Analysis</h5>
+                                                <div class="chart-container" style="position: relative; height: 300px;">
+                                                    <canvas id="sourceAnalysisChart"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Methodology Tab -->
+                                <div id="methodologyTab" class="tab-pane hidden">
+                                    <div class="methodology-content">
+                                        <div class="methodology-section">
+                                            <h5>Analysis Process</h5>
+                                            <p>Our sentiment analysis employs advanced natural language processing techniques to evaluate news content across multiple dimensions:</p>
+                                            <ul>
+                                                <li><strong>Text Processing:</strong> Advanced tokenization and linguistic analysis of headlines and article content</li>
+                                                <li><strong>Context Analysis:</strong> Understanding of financial terminology and market context</li>
+                                                <li><strong>Source Credibility:</strong> Weighted scoring based on publication reputation and historical accuracy</li>
+                                                <li><strong>Temporal Relevance:</strong> Recent news weighted more heavily than older articles</li>
+                                            </ul>
+                                        </div>
+                                        <div class="methodology-section">
+                                            <h5>Confidence Calculation</h5>
+                                            <p>Confidence scores are calculated based on:</p>
+                                            <ul>
+                                                <li>Source credibility ratings (1-5 scale)</li>
+                                                <li>Linguistic certainty indicators in text</li>
+                                                <li>Consistency across multiple sources</li>
+                                                <li>Recency and relevance of information</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Disclaimer Section -->
+                <section class="disclaimer-section">
+                    <div class="disclaimer-card">
+                        <h4>⚠️ Important Disclaimer</h4>
+                        <p>This sentiment analysis tool is for informational purposes only and should not be considered as investment advice. Market sentiment can change rapidly, and past performance does not guarantee future results. Always consult with qualified financial advisors before making investment decisions. The data presented may have delays and should be verified from official sources.</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- News Detail Modal -->
+    <div id="newsDetailModal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeNewsModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalHeadline"></h3>
+                <button class="modal-close" onclick="closeNewsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta">
+                    <span id="modalSource" class="modal-source"></span>
+                    <span id="modalTimestamp" class="modal-timestamp"></span>
+                    <span id="modalCredibility" class="modal-credibility"></span>
+                </div>
+                <div class="modal-sentiment">
+                    <span id="modalSentimentTag" class="sentiment-tag"></span>
+                    <span id="modalConfidence" class="confidence-score"></span>
+                </div>
+                <div class="modal-reasoning">
+                    <h5>Analysis Reasoning</h5>
+                    <p id="modalReasoning"></p>
+                </div>
+                <div class="modal-key-phrases">
+                    <h5>Key Phrases</h5>
+                    <div id="modalKeyPhrases" class="key-phrases-list"></div>
+                </div>
+                <div class="modal-full-text">
+                    <h5>Full Article Summary</h5>
+                    <p id="modalFullText"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/companies.js"></script>
+    <script src="./js/sentment-app.js"></script>
+</body>
+</html>
