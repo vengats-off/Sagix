@@ -277,7 +277,7 @@ def homepage():
 @app.route('/sentiment')
 def sentiment_page():
     """Serve sentiment analysis page"""
-    return render_template('sentiment.html')
+    return render_template('/sentiment.html')
 
 # Static file routes for your frontend files
 @app.route('/companies.js')
