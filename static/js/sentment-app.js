@@ -37,7 +37,7 @@ const modalFullText = document.getElementById('modalFullText');
 let currentCompany = '';
 let selectedDateRange = '1d'; // Default date range
 
-// Company suggestions data (you may already have this)
+// Company suggestions data
 const companies = [
     { name: "Tata Consultancy Services", symbol: "TCS" },
     { name: "Reliance Industries", symbol: "RELIANCE" },
@@ -51,11 +51,56 @@ const companies = [
     { name: "Kotak Mahindra Bank", symbol: "KOTAKBANK" }
 ];
 
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('SagiX Sentiment Analysis initialized');
+    console.log('API Base URL:', API_BASE_URL);
+    
+    // Set default date range as active
+    const defaultDateBtn = document.querySelector('.date-range-btn[data-range="1d"]');
+    if (defaultDateBtn) {
+        defaultDateBtn.classList.add('active');
+    }
+    
+    // Add event listeners only if elements exist
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearchInput);
+    }
+    
+    if (searchSuggestions) {
+        searchSuggestions.addEventListener('click', handleSuggestionClick);
+    }
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', handleRefresh);
+    }
+    
+    // Add date range button listeners
+    document.querySelectorAll('.date-range-btn').forEach(btn => {
+        btn.addEventListener('click', handleDateRangeClick);
+    });
+    
+    // Add form submission listener
+    const sentimentForm = document.getElementById('sentimentForm');
+    if (sentimentForm) {
+        sentimentForm.addEventListener('submit', handleFormSubmit);
+    }
+    
+    // Add global click listener for hiding suggestions
+    document.addEventListener('click', handleGlobalClick);
+    
+    // Add modal close listeners
+    document.addEventListener('click', handleModalClose);
+    document.addEventListener('keydown', handleKeyboardNavigation);
+});
+
 // Show suggestions as user types
-searchInput.addEventListener('input', () => {
+function handleSearchInput() {
     const inputVal = searchInput.value.toLowerCase();
     if (inputVal.length < 2) {
-        searchSuggestions.classList.add('hidden');
+        if (searchSuggestions) {
+            searchSuggestions.classList.add('hidden');
+        }
         return;
     }
     
@@ -65,8 +110,10 @@ searchInput.addEventListener('input', () => {
         return name.includes(inputVal) || symbol.includes(inputVal);
     });
     
-    if (filtered.length === 0) {
-        searchSuggestions.classList.add('hidden');
+    if (filtered.length === 0 || !searchSuggestions) {
+        if (searchSuggestions) {
+            searchSuggestions.classList.add('hidden');
+        }
         return;
     }
     
@@ -74,54 +121,79 @@ searchInput.addEventListener('input', () => {
         `<li class="suggestion-item" data-symbol="${c.symbol}">${c.name} (${c.symbol})</li>`
     ).join('');
     searchSuggestions.classList.remove('hidden');
-});
+}
 
 // Handle suggestion clicks
-searchSuggestions.addEventListener('click', (e) => {
+function handleSuggestionClick(e) {
     if (e.target.classList.contains('suggestion-item')) {
         const symbol = e.target.getAttribute('data-symbol');
         const name = e.target.textContent;
-        searchInput.value = name;
+        if (searchInput) {
+            searchInput.value = name;
+        }
         currentCompany = symbol;
-        searchSuggestions.classList.add('hidden');
+        if (searchSuggestions) {
+            searchSuggestions.classList.add('hidden');
+        }
         
         // Automatically fetch data when a company is selected
         if (symbol) {
             fetchSentimentData(symbol, selectedDateRange);
         }
     }
-});
+}
 
-// Hide suggestions when clicking outside
-document.addEventListener('click', (e) => {
-    if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+// Handle global clicks to hide suggestions
+function handleGlobalClick(e) {
+    if (searchInput && searchSuggestions && 
+        !searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
         searchSuggestions.classList.add('hidden');
     }
-});
+}
 
 // Date range selection handlers
-document.querySelectorAll('.date-range-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Remove active class from all buttons
-        document.querySelectorAll('.date-range-btn').forEach(b => b.classList.remove('active'));
-        // Add active class to clicked button
-        btn.classList.add('active');
-        
-        selectedDateRange = btn.getAttribute('data-range');
-        
-        // Refresh data if a company is selected
-        if (currentCompany) {
-            fetchSentimentData(currentCompany, selectedDateRange);
-        }
-    });
-});
-
-// Refresh button handler
-refreshBtn.addEventListener('click', () => {
+function handleDateRangeClick(e) {
+    const btn = e.target;
+    // Remove active class from all buttons
+    document.querySelectorAll('.date-range-btn').forEach(b => b.classList.remove('active'));
+    // Add active class to clicked button
+    btn.classList.add('active');
+    
+    selectedDateRange = btn.getAttribute('data-range');
+    
+    // Refresh data if a company is selected
     if (currentCompany) {
         fetchSentimentData(currentCompany, selectedDateRange);
     }
-});
+}
+
+// Refresh button handler
+function handleRefresh() {
+    if (currentCompany) {
+        fetchSentimentData(currentCompany, selectedDateRange);
+    }
+}
+
+// Form submission handler
+function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    if (!searchInput) return;
+    
+    const searchValue = searchInput.value.trim();
+    if (!searchValue) return;
+    
+    // Try to find matching company
+    const matchedCompany = companies.find(c => 
+        c.name.toLowerCase().includes(searchValue.toLowerCase()) || 
+        c.symbol.toLowerCase() === searchValue.toLowerCase()
+    );
+    
+    const companySymbol = matchedCompany ? matchedCompany.symbol : searchValue.toUpperCase();
+    currentCompany = companySymbol;
+    
+    fetchSentimentData(companySymbol, selectedDateRange);
+}
 
 // Main function to fetch sentiment data
 async function fetchSentimentData(company, dateRange) {
@@ -181,22 +253,34 @@ async function fetchSpecificSentiment(symbol) {
 // Function to display results
 function displayResults(data) {
     hideAllStates();
-    resultsSection.classList.remove('hidden');
+    if (resultsSection) {
+        resultsSection.classList.remove('hidden');
+    }
     
     // Update company name
-    companyNameElem.textContent = currentCompany;
+    if (companyNameElem) {
+        companyNameElem.textContent = currentCompany;
+    }
     
     // Update overall metrics
     if (data.overall_sentiment) {
         updateSentimentBadge(data.overall_sentiment.sentiment, data.overall_sentiment.confidence);
-        overallReasoning.textContent = data.overall_sentiment.reasoning || 'No specific reasoning provided';
+        if (overallReasoning) {
+            overallReasoning.textContent = data.overall_sentiment.reasoning || 'No specific reasoning provided';
+        }
     }
     
     // Update statistics
-    sourcesAnalyzed.textContent = data.sources_analyzed || 0;
-    articlesProcessed.textContent = data.articles ? data.articles.length : 0;
-    overallConfidence.textContent = data.overall_sentiment ? 
-        `${Math.round(data.overall_sentiment.confidence * 100)}%` : 'N/A';
+    if (sourcesAnalyzed) {
+        sourcesAnalyzed.textContent = data.sources_analyzed || 0;
+    }
+    if (articlesProcessed) {
+        articlesProcessed.textContent = data.articles ? data.articles.length : 0;
+    }
+    if (overallConfidence) {
+        overallConfidence.textContent = data.overall_sentiment ? 
+            `${Math.round(data.overall_sentiment.confidence * 100)}%` : 'N/A';
+    }
     
     // Display news articles
     if (data.articles && data.articles.length > 0) {
@@ -206,6 +290,8 @@ function displayResults(data) {
 
 // Function to update sentiment badge
 function updateSentimentBadge(sentiment, confidence) {
+    if (!sentimentBadge) return;
+    
     sentimentBadge.className = 'sentiment-badge';
     
     if (sentiment === 'positive') {
@@ -221,8 +307,10 @@ function updateSentimentBadge(sentiment, confidence) {
 
 // Function to display news articles
 function displayNewsArticles(articles) {
-    newsSourcesList.innerHTML = articles.map(article => `
-        <div class="news-source-item" onclick="openNewsModal('${article.id || Math.random()}')">
+    if (!newsSourcesList) return;
+    
+    newsSourcesList.innerHTML = articles.map((article, index) => `
+        <div class="news-source-item" onclick="openNewsModal(${index})">
             <div class="source-header">
                 <div class="source-info">
                     <span class="source-name">${article.source || 'Unknown Source'}</span>
@@ -245,40 +333,54 @@ function displayNewsArticles(articles) {
 }
 
 // Function to open news detail modal
-function openNewsModal(articleId) {
-    if (!window.currentArticles) return;
+function openNewsModal(articleIndex) {
+    if (!window.currentArticles || !newsModal) return;
     
-    const article = window.currentArticles.find(a => 
-        (a.id && a.id.toString() === articleId) || 
-        Math.random().toString() === articleId
-    ) || window.currentArticles[0];
-    
+    const article = window.currentArticles[articleIndex];
     if (!article) return;
     
     // Populate modal content
-    modalHeadline.textContent = article.title || article.headline || 'No Title';
-    modalSource.textContent = article.source || 'Unknown Source';
-    modalTimestamp.textContent = formatTimestamp(article.published_at || article.timestamp);
-    modalCredibility.textContent = article.credibility_score || 'N/A';
-    
-    // Update sentiment tag
-    modalSentimentTag.className = 'sentiment-tag ' + (article.sentiment || 'neutral');
-    modalSentimentTag.textContent = (article.sentiment || 'neutral').toUpperCase();
-    
-    modalConfidence.textContent = article.confidence ? 
-        `${Math.round(article.confidence * 100)}%` : 'N/A';
-    modalReasoning.textContent = article.reasoning || 'No reasoning provided';
-    
-    // Display key phrases
-    if (article.key_phrases && article.key_phrases.length > 0) {
-        modalKeyPhrases.innerHTML = article.key_phrases.map(phrase => 
-            `<span class="key-phrase">${phrase}</span>`
-        ).join('');
-    } else {
-        modalKeyPhrases.innerHTML = '<span class="no-data">No key phrases available</span>';
+    if (modalHeadline) {
+        modalHeadline.textContent = article.title || article.headline || 'No Title';
+    }
+    if (modalSource) {
+        modalSource.textContent = article.source || 'Unknown Source';
+    }
+    if (modalTimestamp) {
+        modalTimestamp.textContent = formatTimestamp(article.published_at || article.timestamp);
+    }
+    if (modalCredibility) {
+        modalCredibility.textContent = article.credibility_score || 'N/A';
     }
     
-    modalFullText.textContent = article.content || article.full_text || 'Full article content not available';
+    // Update sentiment tag
+    if (modalSentimentTag) {
+        modalSentimentTag.className = 'sentiment-tag ' + (article.sentiment || 'neutral');
+        modalSentimentTag.textContent = (article.sentiment || 'neutral').toUpperCase();
+    }
+    
+    if (modalConfidence) {
+        modalConfidence.textContent = article.confidence ? 
+            `${Math.round(article.confidence * 100)}%` : 'N/A';
+    }
+    if (modalReasoning) {
+        modalReasoning.textContent = article.reasoning || 'No reasoning provided';
+    }
+    
+    // Display key phrases
+    if (modalKeyPhrases) {
+        if (article.key_phrases && article.key_phrases.length > 0) {
+            modalKeyPhrases.innerHTML = article.key_phrases.map(phrase => 
+                `<span class="key-phrase">${phrase}</span>`
+            ).join('');
+        } else {
+            modalKeyPhrases.innerHTML = '<span class="no-data">No key phrases available</span>';
+        }
+    }
+    
+    if (modalFullText) {
+        modalFullText.textContent = article.content || article.full_text || 'Full article content not available';
+    }
     
     // Show modal
     newsModal.classList.add('active');
@@ -286,7 +388,23 @@ function openNewsModal(articleId) {
 
 // Function to close modal
 function closeNewsModal() {
-    newsModal.classList.remove('active');
+    if (newsModal) {
+        newsModal.classList.remove('active');
+    }
+}
+
+// Modal close handlers
+function handleModalClose(e) {
+    if (e.target === newsModal || e.target.classList.contains('close-modal')) {
+        closeNewsModal();
+    }
+}
+
+// Keyboard navigation for modal
+function handleKeyboardNavigation(e) {
+    if (e.key === 'Escape' && newsModal && newsModal.classList.contains('active')) {
+        closeNewsModal();
+    }
 }
 
 // Function to format timestamp
@@ -304,68 +422,37 @@ function formatTimestamp(timestamp) {
 // State management functions
 function showLoadingState() {
     hideAllStates();
-    loadingState.classList.remove('hidden');
+    if (loadingState) {
+        loadingState.classList.remove('hidden');
+    }
 }
 
 function showNoDataState() {
     hideAllStates();
-    noDataState.classList.remove('hidden');
+    if (noDataState) {
+        noDataState.classList.remove('hidden');
+    }
 }
 
 function showErrorState(message) {
     hideAllStates();
-    noDataState.classList.remove('hidden');
-    // You can customize this to show error message
+    if (noDataState) {
+        noDataState.classList.remove('hidden');
+    }
     console.error('Error:', message);
 }
 
 function hideAllStates() {
-    loadingState.classList.add('hidden');
-    noDataState.classList.add('hidden');
-    resultsSection.classList.add('hidden');
+    if (loadingState) {
+        loadingState.classList.add('hidden');
+    }
+    if (noDataState) {
+        noDataState.classList.add('hidden');
+    }
+    if (resultsSection) {
+        resultsSection.classList.add('hidden');
+    }
 }
-
-// Search form submission
-document.getElementById('sentimentForm')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    
-    const searchValue = searchInput.value.trim();
-    if (!searchValue) return;
-    
-    // Try to find matching company
-    const matchedCompany = companies.find(c => 
-        c.name.toLowerCase().includes(searchValue.toLowerCase()) || 
-        c.symbol.toLowerCase() === searchValue.toLowerCase()
-    );
-    
-    const companySymbol = matchedCompany ? matchedCompany.symbol : searchValue.toUpperCase();
-    currentCompany = companySymbol;
-    
-    fetchSentimentData(companySymbol, selectedDateRange);
-});
-
-// Close modal when clicking outside or on close button
-document.addEventListener('click', (e) => {
-    if (e.target === newsModal || e.target.classList.contains('close-modal')) {
-        closeNewsModal();
-    }
-});
-
-// Keyboard navigation for modal
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && newsModal.classList.contains('active')) {
-        closeNewsModal();
-    }
-});
-
-// Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('SagiX Sentiment Analysis initialized');
-    console.log('API Base URL:', API_BASE_URL);
-    
-    // Set default date range as active
-    document.querySelector('.date-range-btn[data-range="1d"]')?.classList.add('active');
-});
 
 // Health check function
 async function healthCheck() {
