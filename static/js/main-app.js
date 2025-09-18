@@ -32,11 +32,7 @@ class TradingDashboard {
         console.log('🚀 SageForge Trading Dashboard initialized');
     }
 
-    // Navigation method
-    navigateToSentiment() {
-        // Navigate to sentiment analysis page
-        window.location.href = 'sentiment.html';
-    }
+
 
     // Live Clock Functionality
     initializeClock() {
