@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Initialize Flask app
-app = Flask(__name__, static_folder='.', template_folder='.')
+app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
 API_KEY = '7eae47b18ad34858878240cb7a6f139a'
