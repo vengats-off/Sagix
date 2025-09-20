@@ -2,7 +2,6 @@ from flask import Flask, render_template, send_from_directory, request, jsonify
 from flask_cors import CORS
 import requests
 import re
-import feedparser
 from datetime import datetime, timedelta, timezone
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
