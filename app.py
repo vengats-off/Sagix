@@ -143,143 +143,81 @@ def get_fallback_news(company_name):
     
     # List of TRUSTED Indian financial RSS feeds
     news_sources = [
-    # Tier 1 - Top Trusted Financial Publications
-    {
-        'name': 'Economic Times Markets',
-        'url': 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms',
-        'source_name': 'Economic Times'
-    },
-    {
-        'name': 'Business Standard Markets',
-        'url': 'https://www.business-standard.com/rss/markets-106.rss',
-        'source_name': 'Business Standard'
-    },
-    {
-        'name': 'Hindu BusinessLine Markets',
-        'url': 'https://www.thehindubusinessline.com/markets/stock-markets/feeder/default.rss',
-        'source_name': 'Hindu BusinessLine'
-    },
-    {
-        'name': 'Financial Express Markets',
-        'url': 'https://www.financialexpress.com/market/rss',
-        'source_name': 'Financial Express'
-    },
-    {
-        'name': 'LiveMint Markets',
-        'url': 'https://www.livemint.com/rss/markets',
-        'source_name': 'LiveMint'
-    },
-    
-    # Tier 2 - TV Channels & News Portals
-    {
-        'name': 'CNBC-TV18 News',
-        'url': 'https://www.cnbctv18.com/rss/latestnews.xml',
-        'source_name': 'CNBC-TV18'
-    },
-    {
-        'name': 'BloombergQuint Markets',
-        'url': 'https://www.bloombergquint.com/feed',
-        'source_name': 'BloombergQuint'
-    },
-    {
-        'name': 'Business Today',
-        'url': 'https://www.businesstoday.in/rss-feed',
-        'source_name': 'Business Today'
-    },
-    {
-        'name': 'News18 Business',
-        'url': 'https://www.news18.com/rss/business.xml',
-        'source_name': 'News18'
-    },
-    {
-        'name': 'Zee Business',
-        'url': 'https://www.zeebiz.com/rss.xml',
-        'source_name': 'Zee Business'
-    },
-    
-    # Tier 3 - Investment & Trading Focused
-    {
-        'name': 'Trade Brains Blog',
-        'url': 'https://tradebrains.in/blog/feed',
-        'source_name': 'Trade Brains'
-    },
-    {
-        'name': 'Alpha Ideas',
-        'url': 'https://alphaideas.in/feed',
-        'source_name': 'Alpha Ideas'
-    },
-    {
-        'name': 'EquityPandit News',
-        'url': 'https://equitypandit.com/category/latest-news/feed',
-        'source_name': 'EquityPandit'
-    },
-    {
-        'name': 'Mind2Markets',
-        'url': 'https://mind2markets.com/feed',
-        'source_name': 'Mind2Markets'
-    },
-    {
-        'name': 'StockManiacs Blog',
-        'url': 'https://stockmaniacs.net/blog/feed',
-        'source_name': 'StockManiacs'
-    },
-    
-    # Tier 4 - Regional & Specialized
-    {
-        'name': 'Above Stocks',
-        'url': 'https://abovestocks.com/feed',
-        'source_name': 'Above Stocks'
-    },
-    {
-        'name': 'Gale Stock Blog',
-        'url': 'https://gale.in/feed',
-        'source_name': 'Gale'
-    },
-    {
-        'name': 'SGX NIFTY Blog',
-        'url': 'https://sgxnifty.xyz/feed',
-        'source_name': 'SGX NIFTY'
-    },
-    {
-        'name': 'RedNifty',
-        'url': 'https://rednifty.blogspot.com/feeds/posts/default',
-        'source_name': 'RedNifty'
-    },
-    {
-        'name': 'Nifty Trading Tips',
-        'url': 'https://niftytipsniftylevels.blogspot.com/feeds/posts/default',
-        'source_name': 'Nifty Trading Tips'
-    },
-    
-    # Tier 5 - Financial Analysis & Insights
-    {
-        'name': 'Financial Insights India',
-        'url': 'https://financialinsights.in/rss/latest',
-        'source_name': 'Financial Insights'
-    },
-    {
-        'name': 'MoneyWorks4Me',
-        'url': 'https://www.moneyworks4me.com/stock-market-news-rss-feeds.xml',
-        'source_name': 'MoneyWorks4Me'
-    },
-    {
-        'name': '5Paisa News',
-        'url': 'https://www.5paisa.com/rss/news.xml',
-        'source_name': '5Paisa'
-    },
-    {
-        'name': 'Investing.com India',
-        'url': 'https://in.investing.com/rss/news.rss',
-        'source_name': 'Investing.com India'
-    },
-    
-    # Tier 6 - Official Sources
-    {
-        'name': 'NSE India News',
-        'url': 'https://www.nseindia.com/rss-feed/press-releases',
-        'source_name': 'NSE India'
-    }
-]
+        # Tier 1 - Core Financial Publications (Original 4)
+        {
+            'name': 'Economic Times Markets',
+            'url': 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms',
+            'source_name': 'Economic Times'
+        },
+        {
+            'name': 'Business Standard Markets',
+            'url': 'https://www.business-standard.com/rss/markets-106.rss',
+            'source_name': 'Business Standard'
+        },
+        {
+            'name': 'Hindu BusinessLine Markets',
+            'url': 'https://www.thehindubusinessline.com/markets/stock-markets/feeder/default.rss',
+            'source_name': 'Hindu BusinessLine'
+        },
+        {
+            'name': 'LiveMint Markets',
+            'url': 'https://www.livemint.com/rss/markets',
+            'source_name': 'LiveMint'
+        },
+        
+        # Tier 2 - Additional Verified Working Sources
+        {
+            'name': 'Financial Express Economy',
+            'url': 'https://www.financialexpress.com/feed/',  # Working main feed
+            'source_name': 'Financial Express'
+        },
+        {
+            'name': 'Times of India Business',
+            'url': 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms',  # Business RSS
+            'source_name': 'Times of India'
+        },
+        {
+            'name': 'Indian Express Business',
+            'url': 'https://indianexpress.com/section/business/feed/',
+            'source_name': 'Indian Express'
+        },
+        {
+            'name': 'CNBC-TV18',
+            'url': 'https://www.cnbctv18.com/rss/home.xml',  # Working RSS
+            'source_name': 'CNBC-TV18'
+        },
+        
+        # Tier 3 - International Sources with India Focus
+        {
+            'name': 'Reuters India Business',
+            'url': 'https://feeds.reuters.com/reuters/INbusinessNews',
+            'source_name': 'Reuters India'
+        },
+        {
+            'name': 'Bloomberg India',
+            'url': 'https://feeds.bloomberg.com/markets/news.rss',
+            'source_name': 'Bloomberg'
+        },
+        
+        # Tier 4 - Regional Business Publications
+        {
+            'name': 'Economic Times B2B',
+            'url': 'https://b2b.economictimes.indiatimes.com/rss',
+            'source_name': 'ET B2B'
+        },
+        {
+            'name': 'Economic Times Retail',
+            'url': 'https://retail.economictimes.indiatimes.com/rss',
+            'source_name': 'ET Retail'
+        },
+        
+        # Tier 5 - Market Watch International
+        {
+            'name': 'MarketWatch',
+            'url': 'https://feeds.marketwatch.com/marketwatch/topstories/',
+            'source_name': 'MarketWatch'
+        }
+    ]
     
     print(f"🔍 Searching for {company_name} across {len(news_sources)} trusted Indian financial news sources...")
     
