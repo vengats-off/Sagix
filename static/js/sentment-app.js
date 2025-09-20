@@ -176,7 +176,9 @@ async function startSentimentAnalysis(company, dateRange = '1d') {
     }, 200);
 
     try {
-        const response = await fetch(`http://127.0.0.1:5000/api/news?company=${encodeURIComponent(company)}&date_range=${dateRange}`);
+        // Change this line to use your actual Render backend URL
+        const API_BASE_URL = 'https://your-backend-app-name.onrender.com';  // Replace with your actual URL
+        const response = await fetch(`${API_BASE_URL}/api/news?company=${encodeURIComponent(company)}&date_range=${dateRange}`);
         
         clearInterval(progressInterval);
         progressFill.style.width = '100%';

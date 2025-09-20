@@ -282,11 +282,11 @@ def sentiment_page():
 # Static file routes for your frontend files
 @app.route('/companies.js')
 def serve_companies_js():
-    return send_from_directory('.', 'companies.js')
+    return send_from_directory('.', 'static/js/companies.js') 
 
-@app.route('/sentment-app.js')  # Note: matches your filename
+@app.route('/sentment-app.js')  # You have a typo - should be "sentiment"
 def serve_sentiment_app_js():
-    return send_from_directory('.', 'sentment-app.js')
+    return send_from_directory('.', 'static/js/sentment-app.js')  # Update path
 
 @app.route('/sentiment-style.css')
 def serve_sentiment_css():
@@ -531,14 +531,6 @@ def test_route():
     })
 
 if __name__ == '__main__':
-    print("🚀 Starting SagiX Financial Sentiment Platform...")
-    print("📍 Available routes:")
-    for rule in app.url_map.iter_rules():
-        methods = ', '.join(rule.methods - {'HEAD', 'OPTIONS'})
-        print(f"   {rule.rule} [{methods}] -> {rule.endpoint}")
-    
-    print(f"\n🌐 Server: http://localhost:5000")
-    print(f"📊 API Test: http://localhost:5000/api/test?company=TCS")
-    print(f"💹 News API: http://localhost:5000/api/news?company=TCS&date_range=1d")
-    
-    app.run(debug=True, host='0.0.0.0', port=5000)
+       import os
+       port = int(os.environ.get('PORT', 5000))
+       app.run(host='0.0.0.0', port=port, debug=False)
