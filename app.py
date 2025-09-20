@@ -7,7 +7,11 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', template_folder='templates')
-CORS(app)
+CORS(app, origins=[
+    "https://sagix.onrender.com",
+    "http://localhost:3000",  # for local development
+    "http://127.0.0.1:8080"   # for local development
+])
 
 API_KEY = '7eae47b18ad34858878240cb7a6f139a'
 analyzer = SentimentIntensityAnalyzer()
