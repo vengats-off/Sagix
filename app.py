@@ -143,37 +143,143 @@ def get_fallback_news(company_name):
     
     # List of TRUSTED Indian financial RSS feeds
     news_sources = [
-        {
-            'name': 'Economic Times Markets',
-            'url': 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms',
-            'source_name': 'Economic Times'
-        },
-        {
-            'name': 'Business Standard Markets',
-            'url': 'https://www.business-standard.com/rss/markets-106.rss',
-            'source_name': 'Business Standard'
-        },
-        {
-            'name': 'Hindu BusinessLine Markets',
-            'url': 'https://www.thehindubusinessline.com/markets/stock-markets/feeder/default.rss',
-            'source_name': 'Hindu BusinessLine'
-        },
-        {
-            'name': 'Financial Express Markets',
-            'url': 'https://www.financialexpress.com/market/rss',
-            'source_name': 'Financial Express'
-        },
-        {
-            'name': 'Mint Markets',
-            'url': 'https://www.livemint.com/rss/markets',
-            'source_name': 'Mint'
-        },
-        {
-            'name': 'MoneyControl News',
-            'url': 'https://www.moneycontrol.com/rss/news.xml',
-            'source_name': 'MoneyControl'
-        }
-    ]
+    # Tier 1 - Top Trusted Financial Publications
+    {
+        'name': 'Economic Times Markets',
+        'url': 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms',
+        'source_name': 'Economic Times'
+    },
+    {
+        'name': 'Business Standard Markets',
+        'url': 'https://www.business-standard.com/rss/markets-106.rss',
+        'source_name': 'Business Standard'
+    },
+    {
+        'name': 'Hindu BusinessLine Markets',
+        'url': 'https://www.thehindubusinessline.com/markets/stock-markets/feeder/default.rss',
+        'source_name': 'Hindu BusinessLine'
+    },
+    {
+        'name': 'Financial Express Markets',
+        'url': 'https://www.financialexpress.com/market/rss',
+        'source_name': 'Financial Express'
+    },
+    {
+        'name': 'LiveMint Markets',
+        'url': 'https://www.livemint.com/rss/markets',
+        'source_name': 'LiveMint'
+    },
+    
+    # Tier 2 - TV Channels & News Portals
+    {
+        'name': 'CNBC-TV18 News',
+        'url': 'https://www.cnbctv18.com/rss/latestnews.xml',
+        'source_name': 'CNBC-TV18'
+    },
+    {
+        'name': 'BloombergQuint Markets',
+        'url': 'https://www.bloombergquint.com/feed',
+        'source_name': 'BloombergQuint'
+    },
+    {
+        'name': 'Business Today',
+        'url': 'https://www.businesstoday.in/rss-feed',
+        'source_name': 'Business Today'
+    },
+    {
+        'name': 'News18 Business',
+        'url': 'https://www.news18.com/rss/business.xml',
+        'source_name': 'News18'
+    },
+    {
+        'name': 'Zee Business',
+        'url': 'https://www.zeebiz.com/rss.xml',
+        'source_name': 'Zee Business'
+    },
+    
+    # Tier 3 - Investment & Trading Focused
+    {
+        'name': 'Trade Brains Blog',
+        'url': 'https://tradebrains.in/blog/feed',
+        'source_name': 'Trade Brains'
+    },
+    {
+        'name': 'Alpha Ideas',
+        'url': 'https://alphaideas.in/feed',
+        'source_name': 'Alpha Ideas'
+    },
+    {
+        'name': 'EquityPandit News',
+        'url': 'https://equitypandit.com/category/latest-news/feed',
+        'source_name': 'EquityPandit'
+    },
+    {
+        'name': 'Mind2Markets',
+        'url': 'https://mind2markets.com/feed',
+        'source_name': 'Mind2Markets'
+    },
+    {
+        'name': 'StockManiacs Blog',
+        'url': 'https://stockmaniacs.net/blog/feed',
+        'source_name': 'StockManiacs'
+    },
+    
+    # Tier 4 - Regional & Specialized
+    {
+        'name': 'Above Stocks',
+        'url': 'https://abovestocks.com/feed',
+        'source_name': 'Above Stocks'
+    },
+    {
+        'name': 'Gale Stock Blog',
+        'url': 'https://gale.in/feed',
+        'source_name': 'Gale'
+    },
+    {
+        'name': 'SGX NIFTY Blog',
+        'url': 'https://sgxnifty.xyz/feed',
+        'source_name': 'SGX NIFTY'
+    },
+    {
+        'name': 'RedNifty',
+        'url': 'https://rednifty.blogspot.com/feeds/posts/default',
+        'source_name': 'RedNifty'
+    },
+    {
+        'name': 'Nifty Trading Tips',
+        'url': 'https://niftytipsniftylevels.blogspot.com/feeds/posts/default',
+        'source_name': 'Nifty Trading Tips'
+    },
+    
+    # Tier 5 - Financial Analysis & Insights
+    {
+        'name': 'Financial Insights India',
+        'url': 'https://financialinsights.in/rss/latest',
+        'source_name': 'Financial Insights'
+    },
+    {
+        'name': 'MoneyWorks4Me',
+        'url': 'https://www.moneyworks4me.com/stock-market-news-rss-feeds.xml',
+        'source_name': 'MoneyWorks4Me'
+    },
+    {
+        'name': '5Paisa News',
+        'url': 'https://www.5paisa.com/rss/news.xml',
+        'source_name': '5Paisa'
+    },
+    {
+        'name': 'Investing.com India',
+        'url': 'https://in.investing.com/rss/news.rss',
+        'source_name': 'Investing.com India'
+    },
+    
+    # Tier 6 - Official Sources
+    {
+        'name': 'NSE India News',
+        'url': 'https://www.nseindia.com/rss-feed/press-releases',
+        'source_name': 'NSE India'
+    }
+]
     
     print(f"🔍 Searching for {company_name} across {len(news_sources)} trusted Indian financial news sources...")
     
