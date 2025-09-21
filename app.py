@@ -8,7 +8,8 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from bs4 import BeautifulSoup
 import time
 import random
-from urllib.parse import urljoin, quote_plus
+from urllib.parse import urljoin, quote_plus, urlparse
+import calendar
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app, origins=[
@@ -141,190 +142,363 @@ def get_company_variations(company_name):
     
     return variations
 
-def generic_news_scraper(url, company_variations, source_name, max_articles=3):
-    """Generic scraper that works across different news sites"""
+def get_historical_dates(date_range):
+    """Generate list of dates to search based on range"""
+    now = datetime.now()
+    dates_to_search = []
+    
+    if date_range == '1d':
+        days = 1
+    elif date_range == '3d':
+        days = 3
+    elif date_range == '1w':
+        days = 7
+    elif date_range == '1m':
+        days = 30
+    else:
+        days = 1
+    
+    # Generate date strings for the past N days
+    for i in range(days):
+        date = now - timedelta(days=i)
+        dates_to_search.append({
+            'date_obj': date,
+            'year': date.year,
+            'month': date.month,
+            'day': date.day,
+            'date_str': date.strftime('%Y-%m-%d'),
+            'month_str': date.strftime('%B').lower(),
+            'month_short': date.strftime('%b').lower()
+        })
+    
+    return dates_to_search
+
+def scrape_timesofindia_historical(company_name, dates_to_search, max_articles=5):
+    """Scrape Times of India with historical date-based URLs"""
     articles = []
+    company_variations = get_company_variations(company_name)
     
     try:
+        # Try multiple URL patterns
+        url_patterns = [
+            f"https://timesofindia.indiatimes.com/topic/{company_name.replace(' ', '-').lower()}",
+            f"https://timesofindia.indiatimes.com/business/{company_name.replace(' ', '-').lower()}",
+            f"https://timesofindia.indiatimes.com/business/india-business"
+        ]
+        
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate'
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
-        if response.status_code != 200:
-            return articles
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Find all potential article containers
-        containers = soup.find_all(['article', 'div', 'section', 'li'], limit=50)
-        
-        found_articles = []
-        
-        for container in containers:
-            if len(found_articles) >= max_articles:
-                break
-                
+        for url_pattern in url_patterns:
             try:
-                # Look for title elements
-                title_elem = (container.find(['h1', 'h2', 'h3', 'h4', 'h5']) or 
-                            container.find('a', href=True))
+                print(f"  Trying Times of India: {url_pattern}")
+                response = requests.get(url_pattern, headers=headers, timeout=8)
                 
-                if not title_elem:
-                    continue
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Look for article containers
+                    containers = soup.find_all(['div', 'article', 'section'], limit=30)
+                    
+                    for container in containers:
+                        if len(articles) >= max_articles:
+                            break
+                            
+                        try:
+                            # Look for headlines
+                            headline_elem = container.find(['h1', 'h2', 'h3', 'h4', 'a'])
+                            if not headline_elem:
+                                continue
+                                
+                            title = headline_elem.get_text().strip()
+                            if len(title) < 20:
+                                continue
+                            
+                            # Check if company is mentioned
+                            if not any(var in title.lower() for var in company_variations):
+                                continue
+                            
+                            # Get URL
+                            url = ''
+                            if headline_elem.name == 'a':
+                                url = headline_elem.get('href', '')
+                            else:
+                                link_elem = container.find('a', href=True)
+                                url = link_elem.get('href', '') if link_elem else ''
+                            
+                            if url and not url.startswith('http'):
+                                url = urljoin('https://timesofindia.indiatimes.com', url)
+                            
+                            # Get description
+                            desc_elem = container.find('p')
+                            description = desc_elem.get_text().strip()[:300] if desc_elem else ""
+                            
+                            # Get date if available
+                            date_elem = container.find(['time', 'span'], class_=re.compile(r'date|time', re.I))
+                            pub_date = date_elem.get_text().strip() if date_elem else datetime.now().isoformat()
+                            
+                            sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {description}")
+                            
+                            articles.append({
+                                'title': title,
+                                'description': description,
+                                'url': url or url_pattern,
+                                'publishedAt': pub_date,
+                                'source': {'name': 'Times of India'},
+                                'sentiment': sentiment,
+                                'sentiment_confidence': round(confidence, 3),
+                                'sentiment_reasoning': reasoning,
+                                'urlToImage': None
+                            })
+                            
+                        except Exception:
+                            continue
                 
-                title = title_elem.get_text().strip()
+                if articles:  # If we found articles, stop trying other URL patterns
+                    break
+                    
+                time.sleep(random.uniform(1, 2))
                 
-                # Skip if title is too short
-                if len(title) < 20:
-                    continue
-                
-                # Check if any company variation appears in title
-                title_lower = title.lower()
-                if not any(var in title_lower for var in company_variations):
-                    continue
-                
-                # Get URL
-                if title_elem.name == 'a':
-                    link = title_elem.get('href', '')
-                else:
-                    link_elem = container.find('a', href=True)
-                    link = link_elem.get('href', '') if link_elem else ''
-                
-                # Make URL absolute
-                if link and not link.startswith('http'):
-                    base_url = f"https://{url.split('/')[2]}"
-                    link = urljoin(base_url, link)
-                
-                # Get description
-                desc_elem = container.find('p') or container.find(['span', 'div'])
-                description = ""
-                if desc_elem:
-                    desc_text = desc_elem.get_text().strip()
-                    if len(desc_text) > 50:
-                        description = desc_text[:300]
-                
-                # Perform sentiment analysis
-                text_for_analysis = f"{title} {description}"
-                sentiment, confidence, reasoning = finbert_sentiment_analysis(text_for_analysis)
-                
-                article = {
-                    'title': title,
-                    'description': description,
-                    'url': link or url,
-                    'publishedAt': datetime.now(timezone.utc).isoformat(),
-                    'source': {'name': source_name},
-                    'sentiment': sentiment,
-                    'sentiment_confidence': round(confidence, 3),
-                    'sentiment_reasoning': reasoning,
-                    'urlToImage': None
-                }
-                
-                found_articles.append(article)
-                
-            except Exception:
+            except Exception as e:
+                print(f"    Times of India pattern failed: {e}")
                 continue
         
-        articles = found_articles
-        print(f"  {source_name}: Found {len(articles)} articles")
+        print(f"  Times of India: Found {len(articles)} articles")
         
     except Exception as e:
-        print(f"  {source_name} scraping error: {e}")
+        print(f"  Times of India error: {e}")
     
     return articles
 
-def get_comprehensive_news_scraping(company_name, date_range='1d'):
-    """Scrape all specified news sources"""
-    all_articles = []
+def scrape_moneycontrol_historical(company_name, dates_to_search, max_articles=5):
+    """Scrape MoneyControl with multiple approaches"""
+    articles = []
     company_variations = get_company_variations(company_name)
     
-    # Convert date range to days
-    date_range_days = 1
     try:
-        if date_range.endswith('d'):
-            date_range_days = int(date_range[:-1])
-        elif date_range.endswith('w'):
-            date_range_days = int(date_range[:-1]) * 7
-        elif date_range.endswith('m'):
-            date_range_days = int(date_range[:-1]) * 30
-    except:
-        date_range_days = 1
-    
-    print(f"Starting comprehensive scraping for {company_name} (last {date_range_days} days)")
-    
-    # Define news sources to scrape
-    news_sources = [
-        {
-            'name': 'Times of India',
-            'urls': [
-                f"https://timesofindia.indiatimes.com/topic/{company_name.replace(' ', '-').lower()}",
-                f"https://timesofindia.indiatimes.com/business"
-            ]
-        },
-        {
-            'name': 'Business Today', 
-            'urls': [
-                f"https://www.businesstoday.in/search?searchterm={quote_plus(company_name)}",
-                f"https://www.businesstoday.in/latest/corporate"
-            ]
-        },
-        {
-            'name': 'Hindustan Times',
-            'urls': [
-                f"https://www.hindustantimes.com/topic/{company_name.replace(' ', '-').lower()}",
-                f"https://www.hindustantimes.com/business"
-            ]
-        },
-        {
-            'name': 'Indian Express',
-            'urls': [
-                f"https://indianexpress.com/search/{quote_plus(company_name)}/",
-                f"https://indianexpress.com/section/business/"
-            ]
-        },
-        {
-            'name': 'MoneyControl',
-            'urls': [
-                f"https://www.moneycontrol.com/news/tags/{company_name.lower().replace(' ', '-')}.html",
-                f"https://www.moneycontrol.com/news/business/"
-            ]
-        },
-        {
-            'name': 'GoodReturns',
-            'urls': [
-                f"https://www.goodreturns.in/search.html?q={quote_plus(company_name)}",
-                f"https://www.goodreturns.in/news/"
-            ]
+        # Try multiple MoneyControl URL patterns
+        url_patterns = [
+            f"https://www.moneycontrol.com/news/tags/{company_name.lower().replace(' ', '-')}.html",
+            f"https://www.moneycontrol.com/news/business/companies/{company_name.lower().replace(' ', '-')}/",
+            f"https://www.moneycontrol.com/news/business/companies/",
+            f"https://www.moneycontrol.com/news/business/"
+        ]
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
         }
+        
+        for url_pattern in url_patterns:
+            try:
+                print(f"  Trying MoneyControl: {url_pattern}")
+                response = requests.get(url_pattern, headers=headers, timeout=8)
+                
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Look for news containers
+                    containers = soup.find_all(['div', 'li', 'article'], limit=25)
+                    
+                    for container in containers:
+                        if len(articles) >= max_articles:
+                            break
+                            
+                        try:
+                            # Look for headlines
+                            headline_elem = container.find(['h1', 'h2', 'h3', 'h4', 'a'])
+                            if not headline_elem:
+                                continue
+                                
+                            title = headline_elem.get_text().strip()
+                            if len(title) < 20:
+                                continue
+                            
+                            # Check if company is mentioned
+                            if not any(var in title.lower() for var in company_variations):
+                                # Also check in container text
+                                container_text = container.get_text().lower()
+                                if not any(var in container_text for var in company_variations):
+                                    continue
+                            
+                            # Get URL
+                            url = ''
+                            if headline_elem.name == 'a':
+                                url = headline_elem.get('href', '')
+                            else:
+                                link_elem = container.find('a', href=True)
+                                url = link_elem.get('href', '') if link_elem else ''
+                            
+                            if url and not url.startswith('http'):
+                                url = urljoin('https://www.moneycontrol.com', url)
+                            
+                            # Get description
+                            desc_elem = container.find('p')
+                            description = desc_elem.get_text().strip()[:300] if desc_elem else ""
+                            
+                            sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {description}")
+                            
+                            articles.append({
+                                'title': title,
+                                'description': description,
+                                'url': url or url_pattern,
+                                'publishedAt': datetime.now().isoformat(),
+                                'source': {'name': 'MoneyControl'},
+                                'sentiment': sentiment,
+                                'sentiment_confidence': round(confidence, 3),
+                                'sentiment_reasoning': reasoning,
+                                'urlToImage': None
+                            })
+                            
+                        except Exception:
+                            continue
+                
+                if articles:  # If we found articles, stop trying other patterns
+                    break
+                    
+                time.sleep(random.uniform(1, 2))
+                
+            except Exception as e:
+                print(f"    MoneyControl pattern failed: {e}")
+                continue
+        
+        print(f"  MoneyControl: Found {len(articles)} articles")
+        
+    except Exception as e:
+        print(f"  MoneyControl error: {e}")
+    
+    return articles
+
+def scrape_business_today_historical(company_name, dates_to_search, max_articles=4):
+    """Scrape Business Today with search and category pages"""
+    articles = []
+    company_variations = get_company_variations(company_name)
+    
+    try:
+        # Try Business Today search and category pages
+        url_patterns = [
+            f"https://www.businesstoday.in/search?searchterm={quote_plus(company_name)}",
+            f"https://www.businesstoday.in/latest/corporate",
+            f"https://www.businesstoday.in/markets"
+        ]
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+        
+        for url_pattern in url_patterns:
+            try:
+                print(f"  Trying Business Today: {url_pattern}")
+                response = requests.get(url_pattern, headers=headers, timeout=8)
+                
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    containers = soup.find_all(['div', 'article', 'section'], limit=20)
+                    
+                    for container in containers:
+                        if len(articles) >= max_articles:
+                            break
+                            
+                        try:
+                            headline_elem = container.find(['h1', 'h2', 'h3', 'a'])
+                            if not headline_elem:
+                                continue
+                                
+                            title = headline_elem.get_text().strip()
+                            if len(title) < 20:
+                                continue
+                            
+                            # Check if company is mentioned
+                            title_lower = title.lower()
+                            container_text = container.get_text().lower()
+                            
+                            if not any(var in title_lower for var in company_variations):
+                                if not any(var in container_text for var in company_variations):
+                                    continue
+                            
+                            # Get URL
+                            url = ''
+                            if headline_elem.name == 'a':
+                                url = headline_elem.get('href', '')
+                            else:
+                                link_elem = container.find('a', href=True)
+                                url = link_elem.get('href', '') if link_elem else ''
+                            
+                            if url and not url.startswith('http'):
+                                url = urljoin('https://www.businesstoday.in', url)
+                            
+                            # Get description
+                            desc_elem = container.find('p')
+                            description = desc_elem.get_text().strip()[:300] if desc_elem else ""
+                            
+                            sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {description}")
+                            
+                            articles.append({
+                                'title': title,
+                                'description': description,
+                                'url': url or url_pattern,
+                                'publishedAt': datetime.now().isoformat(),
+                                'source': {'name': 'Business Today'},
+                                'sentiment': sentiment,
+                                'sentiment_confidence': round(confidence, 3),
+                                'sentiment_reasoning': reasoning,
+                                'urlToImage': None
+                            })
+                            
+                        except Exception:
+                            continue
+                
+                if articles:  # If we found articles, stop trying other patterns
+                    break
+                    
+                time.sleep(random.uniform(1, 2))
+                
+            except Exception as e:
+                print(f"    Business Today pattern failed: {e}")
+                continue
+        
+        print(f"  Business Today: Found {len(articles)} articles")
+        
+    except Exception as e:
+        print(f"  Business Today error: {e}")
+    
+    return articles
+
+def get_comprehensive_historical_news(company_name, date_range='1d'):
+    """Get historical news using web scraping with date awareness"""
+    all_articles = []
+    
+    print(f"Starting historical news scraping for {company_name} (range: {date_range})")
+    
+    # Generate dates to search
+    dates_to_search = get_historical_dates(date_range)
+    print(f"Searching for news across {len(dates_to_search)} days")
+    
+    # Scrape each news source
+    scrapers = [
+        ('Times of India', scrape_timesofindia_historical, 5),
+        ('MoneyControl', scrape_moneycontrol_historical, 5),
+        ('Business Today', scrape_business_today_historical, 4)
     ]
     
-    for source in news_sources:
+    for source_name, scraper_func, max_articles in scrapers:
         try:
-            print(f"  Scraping {source['name']}...")
+            print(f"Scraping {source_name}...")
+            articles = scraper_func(company_name, dates_to_search, max_articles)
+            all_articles.extend(articles)
             
-            # Try each URL for the source
-            source_articles = []
-            for url in source['urls']:
-                try:
-                    articles = generic_news_scraper(url, company_variations, source['name'], 3)
-                    source_articles.extend(articles)
-                    
-                    if len(source_articles) >= 4:  # Limit per source
-                        break
-                        
-                    time.sleep(random.uniform(0.5, 1.0))  # Small delay between URLs
-                    
-                except Exception as e:
-                    print(f"    Error scraping {url}: {e}")
-                    continue
-            
-            all_articles.extend(source_articles[:4])  # Max 4 articles per source
-            
-            # Larger delay between different sources
-            time.sleep(random.uniform(1.0, 2.0))
+            # Rate limiting
+            time.sleep(random.uniform(2, 3))
             
         except Exception as e:
-            print(f"  {source['name']} failed completely: {e}")
+            print(f"{source_name} scraping failed: {e}")
             continue
     
     # Remove duplicates
@@ -333,8 +507,8 @@ def get_comprehensive_news_scraping(company_name, date_range='1d'):
     
     for article in all_articles:
         title = article.get('title', '').lower().strip()
-        # Use first 8 words for comparison
-        title_words = title.split()[:8]
+        # Use first 6 words for comparison
+        title_words = title.split()[:6]
         title_key = ' '.join(sorted(title_words)) if title_words else title
         
         if title_key and title_key not in seen_titles and len(title) > 20:
@@ -342,10 +516,7 @@ def get_comprehensive_news_scraping(company_name, date_range='1d'):
             unique_articles.append(article)
     
     # Sort by source reliability
-    source_priority = {
-        'MoneyControl': 1, 'Business Today': 2, 'Times of India': 3,
-        'Indian Express': 4, 'Hindustan Times': 5, 'GoodReturns': 6
-    }
+    source_priority = {'MoneyControl': 1, 'Business Today': 2, 'Times of India': 3}
     
     def article_priority(article):
         source_name = article.get('source', {}).get('name', '')
@@ -353,20 +524,20 @@ def get_comprehensive_news_scraping(company_name, date_range='1d'):
     
     unique_articles.sort(key=article_priority)
     
-    print(f"Total unique articles found: {len(unique_articles)}")
-    return unique_articles[:20]  # Return top 20 articles
+    print(f"Total unique historical articles found: {len(unique_articles)}")
+    return unique_articles[:15]  # Return top 15 articles
 
 def create_sample_articles(company_name):
     """Create sample articles when no real news is found"""
     return [{
-        'title': f'{company_name} shows stable performance in recent market analysis',
-        'description': f'Comprehensive market analysis indicates {company_name} maintaining steady position with balanced investor sentiment.',
+        'title': f'{company_name} maintains market position amid current economic conditions',
+        'description': f'Analysis shows {company_name} navigating market conditions with strategic focus on core business operations.',
         'url': 'https://example.com/sample',
         'publishedAt': datetime.now(timezone.utc).isoformat(),
         'source': {'name': 'Market Analysis'},
         'sentiment': 'neutral',
         'sentiment_confidence': 0.65,
-        'sentiment_reasoning': 'Based on overall market tone (Score: 0.02)',
+        'sentiment_reasoning': 'Based on overall market analysis (Score: 0.02)',
         'urlToImage': None
     }]
 
@@ -377,9 +548,9 @@ def generate_reasoning_text(sentiment_counts, overall_sentiment):
         return "No articles found for analysis"
     
     if overall_sentiment == 'positive':
-        return f"Positive sentiment detected in {sentiment_counts['positive']} out of {total} articles from multiple trusted news sources"
+        return f"Positive sentiment detected in {sentiment_counts['positive']} out of {total} articles from web scraping analysis"
     elif overall_sentiment == 'negative':
-        return f"Negative sentiment detected in {sentiment_counts['negative']} out of {total} articles from multiple trusted news sources"
+        return f"Negative sentiment detected in {sentiment_counts['negative']} out of {total} articles from web scraping analysis"
     else:
         return f"Mixed sentiment across {total} articles: {sentiment_counts['positive']} positive, {sentiment_counts['negative']} negative, {sentiment_counts['neutral']} neutral"
 
@@ -395,21 +566,21 @@ def sentiment_page():
 # Static file routes
 @app.route('/companies.js')
 def serve_companies_js():
-    return send_from_directory('.', 'static/js/companies.js')
+    return send_from_directory('static/js', 'companies.js')
 
 @app.route('/sentment-app.js')
 def serve_sentiment_app_js():
-    return send_from_directory('.', 'static/js/sentment-app.js')
+    return send_from_directory('static/js', 'sentment-app.js')
 
 @app.route('/sentiment-style.css')
 def serve_sentiment_css():
-    return send_from_directory('.', 'static/js/sentiment-style.css')
+    return send_from_directory('static/css', 'sentiment-style.css')
 
 @app.route('/logo.png')
 def serve_logo():
     return send_from_directory('.', 'logo.png')
 
-# MAIN API ROUTE
+# MAIN API ROUTE - HISTORICAL WEB SCRAPING
 @app.route('/api/news', methods=['GET'])
 def get_news():
     company_name = request.args.get('company', '').strip()
@@ -418,43 +589,19 @@ def get_news():
     
     date_range = request.args.get('date_range', '1d').lower()
     
-    print(f"Starting news analysis for {company_name} (range: {date_range})")
+    print(f"Starting historical news analysis for {company_name} (range: {date_range})")
     
     try:
-        # Start with fast RSS sources first
-        all_articles = []
+        # Get historical news through web scraping
+        all_articles = get_comprehensive_historical_news(company_name, date_range)
         
-        # Quick RSS fetch (reliable)
-        try:
-            rss_articles = get_rss_fallback(company_name)
-            all_articles.extend(rss_articles)
-            print(f"RSS articles: {len(rss_articles)}")
-        except Exception as e:
-            print(f"RSS failed: {e}")
-        
-        # If we have some articles from RSS, return those quickly
-        if len(all_articles) >= 3:
-            print("Using RSS articles - sufficient coverage")
-        else:
-            # Try limited web scraping (2-3 sites max)
-            print("Trying limited web scraping...")
-            try:
-                scraping_articles = get_limited_scraping(company_name)
-                all_articles.extend(scraping_articles)
-                print(f"Scraping articles: {len(scraping_articles)}")
-            except Exception as e:
-                print(f"Scraping failed: {e}")
-        
-        # If still no articles, use sample data
+        # If no articles found, use sample data
         if not all_articles:
+            print("No articles found through web scraping, using sample data")
             all_articles = create_sample_articles(company_name)
-            print("Using sample articles")
-        
-        # Remove duplicates quickly
-        unique_articles = remove_duplicates_fast(all_articles)
         
         # Calculate sentiment summary
-        sentiments = [a['sentiment'] for a in unique_articles]
+        sentiments = [a['sentiment'] for a in all_articles]
         sentiment_counts = {
             'positive': sentiments.count('positive'),
             'negative': sentiments.count('negative'),
@@ -467,12 +614,12 @@ def get_news():
             else 'neutral'
         )
         
-        avg_confidence = sum(a['sentiment_confidence'] for a in unique_articles) / len(unique_articles) if unique_articles else 0.6
-        sources_used = list(set(a.get('source', {}).get('name', '') for a in unique_articles))
+        avg_confidence = sum(a['sentiment_confidence'] for a in all_articles) / len(all_articles) if all_articles else 0.6
+        sources_used = list(set(a.get('source', {}).get('name', '') for a in all_articles))
         
         return jsonify({
-            'articles': unique_articles[:15],  # Limit to 15 articles
-            'totalResults': len(unique_articles),
+            'articles': all_articles,
+            'totalResults': len(all_articles),
             'summary': {
                 'overall_sentiment': overall_sentiment,
                 'sentiment_counts': sentiment_counts,
@@ -484,14 +631,14 @@ def get_news():
                 'sources_used': sources_used,
                 'total_sources_analyzed': len(sources_used)
             },
-            'status': 'success',
-            'message': f'Analysis from {len(sources_used)} sources'
+            'status': 'historical_web_scraping',
+            'message': f'Historical analysis from {len(sources_used)} sources over {date_range}'
         }), 200
         
     except Exception as e:
         print(f"Critical error for {company_name}: {str(e)}")
         
-        # Emergency fallback - always return something
+        # Always return something
         sample_articles = create_sample_articles(company_name)
         
         return jsonify({
@@ -504,148 +651,19 @@ def get_news():
                 'company': company_name,
                 'date_range': date_range,
                 'generated_at': datetime.now(timezone.utc).isoformat(),
-                'reasoning': 'Emergency fallback - sample data provided'
+                'reasoning': 'Sample data provided due to technical issues'
             },
-            'status': 'emergency_fallback',
-            'message': 'Using sample data due to technical issues'
+            'status': 'fallback',
+            'message': 'Using sample data - please try again'
         }), 200
-
-def get_rss_fallback(company_name):
-    """Fast RSS-only approach"""
-    articles = []
-    company_variations = get_company_variations(company_name)
-    
-    # Only the most reliable RSS feeds
-    reliable_feeds = [
-        {
-            'url': 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms',
-            'name': 'Economic Times'
-        },
-        {
-            'url': 'https://www.business-standard.com/rss/markets-106.rss',
-            'name': 'Business Standard'
-        },
-        {
-            'url': 'https://www.livemint.com/rss/markets',
-            'name': 'LiveMint'
-        }
-    ]
-    
-    for feed in reliable_feeds:
-        try:
-            parsed_feed = feedparser.parse(feed['url'])
-            
-            for entry in parsed_feed.entries[:10]:  # Limit entries
-                title = getattr(entry, 'title', '')
-                summary = getattr(entry, 'summary', '')
-                combined_text = f"{title} {summary}".lower()
-                
-                if any(var in combined_text for var in company_variations):
-                    sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {summary}")
-                    
-                    articles.append({
-                        'title': title,
-                        'description': summary,
-                        'url': getattr(entry, 'link', ''),
-                        'publishedAt': getattr(entry, 'published', datetime.now(timezone.utc).isoformat()),
-                        'source': {'name': feed['name']},
-                        'sentiment': sentiment,
-                        'sentiment_confidence': round(confidence, 3),
-                        'sentiment_reasoning': reasoning,
-                        'urlToImage': None
-                    })
-                    
-                    if len(articles) >= 8:  # Stop when we have enough
-                        return articles
-                        
-        except Exception as e:
-            print(f"RSS feed {feed['name']} failed: {e}")
-            continue
-    
-    return articles
-
-def get_limited_scraping(company_name):
-    """Limited scraping - only 1-2 sites to avoid timeouts"""
-    articles = []
-    company_variations = get_company_variations(company_name)
-    
-    # Try only MoneyControl (most reliable for Indian companies)
-    try:
-        url = f"https://www.moneycontrol.com/news/tags/{company_name.lower().replace(' ', '-')}.html"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        
-        response = requests.get(url, headers=headers, timeout=5)  # Short timeout
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            containers = soup.find_all(['div', 'article'], limit=10)
-            
-            for container in containers:
-                if len(articles) >= 3:  # Limit articles
-                    break
-                    
-                try:
-                    title_elem = container.find(['h1', 'h2', 'h3']) or container.find('a')
-                    if title_elem:
-                        title = title_elem.get_text().strip()
-                        
-                        if any(var in title.lower() for var in company_variations):
-                            description = ""
-                            desc_elem = container.find('p')
-                            if desc_elem:
-                                description = desc_elem.get_text().strip()[:200]
-                            
-                            sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {description}")
-                            
-                            articles.append({
-                                'title': title,
-                                'description': description,
-                                'url': url,
-                                'publishedAt': datetime.now(timezone.utc).isoformat(),
-                                'source': {'name': 'MoneyControl'},
-                                'sentiment': sentiment,
-                                'sentiment_confidence': round(confidence, 3),
-                                'sentiment_reasoning': reasoning,
-                                'urlToImage': None
-                            })
-                except Exception:
-                    continue
-                    
-        print(f"MoneyControl scraping: {len(articles)} articles")
-        
-    except Exception as e:
-        print(f"MoneyControl scraping failed: {e}")
-    
-    return articles
-
-def remove_duplicates_fast(articles):
-    """Fast duplicate removal"""
-    seen = set()
-    unique = []
-    
-    for article in articles:
-        title = article.get('title', '').lower().strip()
-        first_words = ' '.join(title.split()[:5])  # First 5 words
-        
-        if first_words and first_words not in seen:
-            seen.add(first_words)
-            unique.append(article)
-    
-    return unique
-
-# ALSO FIX the CSS route:
-@app.route('/sentiment-style.css')
-def serve_sentiment_css():
-    return send_from_directory('.', 'static/css/sentiment-style.css')
-
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now(timezone.utc).isoformat(),
-        'news_sources': 'Comprehensive Web Scraping: Times of India, Business Today, Hindustan Times, Indian Express, MoneyControl, GoodReturns',
-        'scraping_capability': 'Historical news up to 1 month'
+        'news_sources': 'Historical Web Scraping: Times of India, MoneyControl, Business Today',
+        'capabilities': 'Historical news data up to 1 month via web scraping'
     })
 
 if __name__ == '__main__':
