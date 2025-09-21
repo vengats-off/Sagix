@@ -418,17 +418,43 @@ def get_news():
     
     date_range = request.args.get('date_range', '1d').lower()
     
-    print(f"Starting comprehensive news analysis for {company_name} (range: {date_range})")
+    print(f"Starting news analysis for {company_name} (range: {date_range})")
     
     try:
-        # Get news through comprehensive scraping
-        all_articles = get_comprehensive_news_scraping(company_name, date_range)
+        # Start with fast RSS sources first
+        all_articles = []
         
+        # Quick RSS fetch (reliable)
+        try:
+            rss_articles = get_rss_fallback(company_name)
+            all_articles.extend(rss_articles)
+            print(f"RSS articles: {len(rss_articles)}")
+        except Exception as e:
+            print(f"RSS failed: {e}")
+        
+        # If we have some articles from RSS, return those quickly
+        if len(all_articles) >= 3:
+            print("Using RSS articles - sufficient coverage")
+        else:
+            # Try limited web scraping (2-3 sites max)
+            print("Trying limited web scraping...")
+            try:
+                scraping_articles = get_limited_scraping(company_name)
+                all_articles.extend(scraping_articles)
+                print(f"Scraping articles: {len(scraping_articles)}")
+            except Exception as e:
+                print(f"Scraping failed: {e}")
+        
+        # If still no articles, use sample data
         if not all_articles:
             all_articles = create_sample_articles(company_name)
+            print("Using sample articles")
+        
+        # Remove duplicates quickly
+        unique_articles = remove_duplicates_fast(all_articles)
         
         # Calculate sentiment summary
-        sentiments = [a['sentiment'] for a in all_articles]
+        sentiments = [a['sentiment'] for a in unique_articles]
         sentiment_counts = {
             'positive': sentiments.count('positive'),
             'negative': sentiments.count('negative'),
@@ -441,12 +467,12 @@ def get_news():
             else 'neutral'
         )
         
-        avg_confidence = sum(a['sentiment_confidence'] for a in all_articles) / len(all_articles) if all_articles else 0.6
-        sources_used = list(set(a.get('source', {}).get('name', '') for a in all_articles))
+        avg_confidence = sum(a['sentiment_confidence'] for a in unique_articles) / len(unique_articles) if unique_articles else 0.6
+        sources_used = list(set(a.get('source', {}).get('name', '') for a in unique_articles))
         
         return jsonify({
-            'articles': all_articles,
-            'totalResults': len(all_articles),
+            'articles': unique_articles[:15],  # Limit to 15 articles
+            'totalResults': len(unique_articles),
             'summary': {
                 'overall_sentiment': overall_sentiment,
                 'sentiment_counts': sentiment_counts,
@@ -458,14 +484,14 @@ def get_news():
                 'sources_used': sources_used,
                 'total_sources_analyzed': len(sources_used)
             },
-            'status': 'comprehensive_scraping',
-            'message': f'Scraped {len(sources_used)} news sources for {date_range} period'
+            'status': 'success',
+            'message': f'Analysis from {len(sources_used)} sources'
         }), 200
         
     except Exception as e:
-        print(f"Exception for {company_name}: {str(e)}")
+        print(f"Critical error for {company_name}: {str(e)}")
         
-        # Fallback to sample articles
+        # Emergency fallback - always return something
         sample_articles = create_sample_articles(company_name)
         
         return jsonify({
@@ -478,11 +504,140 @@ def get_news():
                 'company': company_name,
                 'date_range': date_range,
                 'generated_at': datetime.now(timezone.utc).isoformat(),
-                'reasoning': 'Analysis based on sample data due to technical issues'
+                'reasoning': 'Emergency fallback - sample data provided'
             },
-            'status': 'fallback_mode',
-            'message': 'Using sample data - please try again'
+            'status': 'emergency_fallback',
+            'message': 'Using sample data due to technical issues'
         }), 200
+
+def get_rss_fallback(company_name):
+    """Fast RSS-only approach"""
+    articles = []
+    company_variations = get_company_variations(company_name)
+    
+    # Only the most reliable RSS feeds
+    reliable_feeds = [
+        {
+            'url': 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms',
+            'name': 'Economic Times'
+        },
+        {
+            'url': 'https://www.business-standard.com/rss/markets-106.rss',
+            'name': 'Business Standard'
+        },
+        {
+            'url': 'https://www.livemint.com/rss/markets',
+            'name': 'LiveMint'
+        }
+    ]
+    
+    for feed in reliable_feeds:
+        try:
+            parsed_feed = feedparser.parse(feed['url'])
+            
+            for entry in parsed_feed.entries[:10]:  # Limit entries
+                title = getattr(entry, 'title', '')
+                summary = getattr(entry, 'summary', '')
+                combined_text = f"{title} {summary}".lower()
+                
+                if any(var in combined_text for var in company_variations):
+                    sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {summary}")
+                    
+                    articles.append({
+                        'title': title,
+                        'description': summary,
+                        'url': getattr(entry, 'link', ''),
+                        'publishedAt': getattr(entry, 'published', datetime.now(timezone.utc).isoformat()),
+                        'source': {'name': feed['name']},
+                        'sentiment': sentiment,
+                        'sentiment_confidence': round(confidence, 3),
+                        'sentiment_reasoning': reasoning,
+                        'urlToImage': None
+                    })
+                    
+                    if len(articles) >= 8:  # Stop when we have enough
+                        return articles
+                        
+        except Exception as e:
+            print(f"RSS feed {feed['name']} failed: {e}")
+            continue
+    
+    return articles
+
+def get_limited_scraping(company_name):
+    """Limited scraping - only 1-2 sites to avoid timeouts"""
+    articles = []
+    company_variations = get_company_variations(company_name)
+    
+    # Try only MoneyControl (most reliable for Indian companies)
+    try:
+        url = f"https://www.moneycontrol.com/news/tags/{company_name.lower().replace(' ', '-')}.html"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        
+        response = requests.get(url, headers=headers, timeout=5)  # Short timeout
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            containers = soup.find_all(['div', 'article'], limit=10)
+            
+            for container in containers:
+                if len(articles) >= 3:  # Limit articles
+                    break
+                    
+                try:
+                    title_elem = container.find(['h1', 'h2', 'h3']) or container.find('a')
+                    if title_elem:
+                        title = title_elem.get_text().strip()
+                        
+                        if any(var in title.lower() for var in company_variations):
+                            description = ""
+                            desc_elem = container.find('p')
+                            if desc_elem:
+                                description = desc_elem.get_text().strip()[:200]
+                            
+                            sentiment, confidence, reasoning = finbert_sentiment_analysis(f"{title} {description}")
+                            
+                            articles.append({
+                                'title': title,
+                                'description': description,
+                                'url': url,
+                                'publishedAt': datetime.now(timezone.utc).isoformat(),
+                                'source': {'name': 'MoneyControl'},
+                                'sentiment': sentiment,
+                                'sentiment_confidence': round(confidence, 3),
+                                'sentiment_reasoning': reasoning,
+                                'urlToImage': None
+                            })
+                except Exception:
+                    continue
+                    
+        print(f"MoneyControl scraping: {len(articles)} articles")
+        
+    except Exception as e:
+        print(f"MoneyControl scraping failed: {e}")
+    
+    return articles
+
+def remove_duplicates_fast(articles):
+    """Fast duplicate removal"""
+    seen = set()
+    unique = []
+    
+    for article in articles:
+        title = article.get('title', '').lower().strip()
+        first_words = ' '.join(title.split()[:5])  # First 5 words
+        
+        if first_words and first_words not in seen:
+            seen.add(first_words)
+            unique.append(article)
+    
+    return unique
+
+# ALSO FIX the CSS route:
+@app.route('/sentiment-style.css')
+def serve_sentiment_css():
+    return send_from_directory('.', 'static/css/sentiment-style.css')
+
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
